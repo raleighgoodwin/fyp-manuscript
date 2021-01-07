@@ -1,30 +1,90 @@
 ---
-title: "fyp-ms"
-author: "Raleigh Goodwin"
-date: "1/6/2021"
-output: pdf_document
+title             : "Motivated Inconsistency in Probability Importance Judgments During COVID-19"
+shorttitle        : "Motivated Inconsistency in Probability Judgments"
+
+author: 
+  - name          : "Raleigh Goodwin"
+    affiliation   : "1,2"
+    corresponding : yes
+    address       : "1227 University St., Eugene, OR 97403"
+    email         : "raleighg@uoregon.edu"
+  - name          : "Brittany Shoots-Reinhard"
+    affiliation   : "2,3"
+  - name          : "Michael Silverstein"
+    affiliation   : "1,2"
+  - name          : "Pär Bjälkebring"
+    affiliation   : "4"
+  - name          : "David Markowitz"
+    affiliation   : "2"
+  - name          : "Ellen Peters"
+    affiliation   : "2"
+
+affiliation:
+  - id            : "1"
+    institution   : "Department of Psychology, University of Oregon"
+  - id            : "2"
+    institution   : "School of Jounralism and Communication, University of Oregon"
+  - id            : "3"
+    institution   : "Department of Psychology, The Ohio State University"
+  - id            : "4"
+    institution   : "Department of Psychology, University of Gothenburg"
+
+authornote: |
+  Add complete departmental affiliations for each author here. Each new line herein must be indented, like this line.
+
+  Enter author note here.
+
+abstract: |
+  One or two sentences providing a **basic introduction** to the field,  comprehensible to a scientist in any discipline.
+  
+  Two to three sentences of **more detailed background**, comprehensible  to scientists in related disciplines.
+  
+  One sentence clearly stating the **general problem** being addressed by  this particular study.
+  
+  One sentence summarizing the main result (with the words "**here we show**" or their equivalent).
+  
+  Two or three sentences explaining what the **main result** reveals in direct comparison to what was thought to be the case previously, or how the  main result adds to previous knowledge.
+  
+  One or two sentences to put the results into a more **general context**.
+  
+  Two or three sentences to provide a **broader perspective**, readily comprehensible to a scientist in any discipline.
+  
+  <!-- https://tinyurl.com/ybremelq -->
+  
+keywords          : "keywords"
+wordcount         : "X"
+
+#bibliography      : ["r-references.bib"]
+
+floatsintext      : no
+figurelist        : no
+tablelist         : no
+footnotelist      : no
+linenumbers       : yes
+mask              : no
+draft             : no
+
+documentclass     : "apa6"
+classoption       : "man"
+output            : papaja::apa6_pdf
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup, include = FALSE}
+library("papaja")
 ```
 
-## R Markdown
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+# Methods
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
-```{r cars}
-summary(cars)
-```
+## Participants
 
-## Including Plots
+## Material
 
-You can also embed plots, for example:
+## Procedure
 
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
+## Data analysis
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+# Results
+
+# Discussion
