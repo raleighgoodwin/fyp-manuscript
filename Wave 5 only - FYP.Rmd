@@ -1,0 +1,1996 @@
+---
+title: "Wave 5"
+author: "Raleigh Goodwin"
+date: "7/22/2020"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+# Libraries
+```{r setup, warning=F, message=F}
+library(tidyverse)
+library(rio)
+library(psych)
+library(lme4)
+library(lsr)
+library(Hmisc)
+library(car)
+library(mosaic)
+library(reghelper)
+library(sjPlot)
+library(dplyr)
+library(knitr)
+```
+
+# Data
+```{r}
+df15 <- import("../Corona_Waves_15_Clean.sav")
+df5 <- import("../Corona_Wave_5_Clean.sav")
+
+df15 %>% 
+  dplyr::select(contains("MotivNum"), contains("Scored"), contains("LvC"), contains("Con_Lib"), 
+         -contains("VL"), -contains("Bene"), -contains("Know"), -contains("Risk")) %>% 
+  str()
+```
+
+# Repress Scientific Notation
+```{r}
+options(scipen = 999)
+```
+
+# Exclude Ss w/ Missing Values
+```{r}
+dfmn15 <- df15 %>% 
+  filter(!is.na(Con_Lib) & !is.na(w4_MotivNum) & !is.na(ONScored) & include==1 
+         & !is.na(VerbLogScored) & w4_include==1 & w5_include==1 & !is.na(w5_MRproduct) 
+         & !is.na(w5_MRessential)) 
+
+dfmn15 %>% 
+  nrow() # Motivated numeracy sample size is 699
+
+dfmn5 <- df15 %>% 
+  filter(!is.na(Con_Lib) & !is.na(ONScored) & include==1 
+         & !is.na(VerbLogScored) & w5_include==1 & !is.na(w5_MRproduct) & !is.na(w5_MRessential)) 
+
+dfmn5 %>% 
+  nrow() # Motivated numeracy sample size is 824
+
+```
+
+# Outliers
+```{r}
+dfmn5 %>% 
+  filter(VerbLogScored_z >= 3 | VerbLogScored_z <= -3 | ONScored_z >= 3 | ONScored_z <= -3 | Con_Lib_z >= 3 | Con_Lib_z <= -3) %>% 
+  nrow() # 5 potential outliers
+
+dfmn5 %>% 
+  filter(VerbLogScored_z >= 3 | VerbLogScored_z <= -3) %>% 
+  nrow() # all in VL
+
+dfmn5 %>% 
+  filter(VerbLogScored_z <= -3) %>% 
+  nrow()
+
+dfmn5 %>% 
+  filter(ONScored_z >= 3 | ONScored_z <= -3) %>% 
+  nrow()
+
+dfmn5 %>% 
+  group_by(VerbLogScored) %>% 
+  count() # These people got every verbal question wrong. They have no business in this data
+
+dfmn5 <- dfmn5 %>% 
+  filter(VerbLogScored != 0) # Got rid of them
+
+dfmn5 %>% 
+  nrow() # Now N = 817 b/c I got rid of 5 people who scored 0 on VL
+
+dfmn15 <- dfmn15 %>% 
+  filter(VerbLogScored != 0) # Got rid of them
+
+dfmn15 %>% 
+  nrow() # Now N = 692 b/c I got rid of 5 people who scored 0 on VL
+
+exp(-0.086)
+
+```
+
+# Demographics
+```{r}
+dfmn5 %>% 
+  select(Gender) %>% 
+  str()
+
+dfmn5 %>% 
+  group_by(Gender) %>% 
+  summarise(n = n(),
+            percent = n() / 817)
+
+dfmn5$Age %>% 
+  psych::describe()
+
+dfmn5$Con_Lib %>% 
+  psych::describe()
+
+dfmn5 %>% 
+  group_by(Con_Lib) %>% 
+  summarise(n = n(),
+            percent = n() / 817)
+
+dfmn5 %>% 
+  group_by(LvC) %>% 
+  summarise(n = n(),
+            percent = n() / 817)
+
+dfmn5$ONScored %>% 
+  psych::describe()
+
+dfmn5 %>% 
+  group_by(ONScored) %>% 
+  summarise(n = n(),
+            percent = n()/817)
+
+dfmn5 %>% 
+  group_by(Edu) %>% 
+  summarise(n = n())
+
+dfmn5$Edu %>% 
+  str()
+
+dfmn5$Edu %>% 
+  psych::describe()
+
+dfmn5 %>% 
+  group_by(Edu) %>% 
+  summarise(n = n(),
+            percent = n() / 817)
+0.433292534 + 0.178702570
+
+dfmn5$Ethinicity_6 %>% 
+  psych::describe()
+
+dfmn5 %>% 
+  group_by(Ethinicity_6) %>% 
+  summarise(n = n(),
+            percent = n() / 817)
+
+```
+
+# Descriptives
+```{r}
+# table
+descriptive_table <- dfmn5 %>% 
+  select(Age, ONScored, VerbLogScored, Con_Lib) %>% 
+  psych::describe() %>% 
+  select(min, max, mean, sd)
+
+descriptive_table <- descriptive_table %>% 
+  dplyr::rename(Mean = mean, 
+                SD = sd,
+                Min = min,
+                Max = max) %>% 
+  round(2)
+
+Variable <- c("Age", "Objective Numeracy", "Verbal Logic", "Ideology")
+
+descriptive_table <- cbind(descriptive_table, Variable)
+
+descriptive_table <- descriptive_table %>% 
+  select(Variable, everything())
+
+descriptive_table %>% 
+  kable()
+
+# just check to make sure the same
+ideonum <- lm(data = dfmn5, ONScored_z ~ Con_Lib_mc)
+summary(ideonum)
+ideovl <- lm(data = dfmn5, VerbLogScored_z ~ Con_Lib_mc)
+summary(ideovl)
+
+describe.by()
+
+dfmn5 %>% 
+  group_by(LvC) %>% 
+  select(Age, ONScored, VerbLogScored) %>% 
+  summarise(Min = min(),
+            Max = max(),
+            Mean = mean(),
+            SD = sd())
+
+
+```
+
+# Specify Variables as Factors or Numeric
+```{r}
+dfmn5$Con_Lib <- as.numeric(dfmn5$Con_Lib)
+dfmn5$LvC <- as.factor(dfmn5$LvC)
+dfmn5$MotivNumDOT <- as.factor(dfmn5$MotivNumDOT)
+
+dfmn5$w5_MotivNumTHit <- as.factor(dfmn5$w5_MotivNumTHit)
+dfmn5$w5_MotivNumBHit <- as.factor(dfmn5$w5_MotivNumBHit)
+
+dfmn5$w5_MotivNumTCor <- as.factor(dfmn5$w5_MotivNumTCor)
+dfmn5$w5_MotivNumBCor <- as.factor(dfmn5$w5_MotivNumBCor)
+
+dfmn5$w5_MotivNumTBRev <- as.factor(dfmn5$w5_MotivNumTBRev)
+dfmn5$w5_MotivNumBTRev <- as.factor(dfmn5$w5_MotivNumBTRev)
+
+dfmn5$w5_MotivNumTBHCRev <- as.factor(dfmn5$w5_MotivNumTBHCRev)
+dfmn5$w5_MotivNumBTHCRev <- as.factor(dfmn5$w5_MotivNumBTHCRev)
+
+
+dfmn15$Con_Lib <- as.numeric(dfmn15$Con_Lib)
+dfmn15$LvC <- as.factor(dfmn15$LvC)
+dfmn15$MotivNumDOT <- as.factor(dfmn15$MotivNumDOT)
+
+dfmn15$w2_MotivNumHit <- as.factor(dfmn15$w2_MotivNumHit)
+dfmn15$w4_MotivNumCHit <- as.factor(dfmn15$w4_MotivNumCHit)
+dfmn15$w2_MotivNumCor <- as.factor(dfmn15$w2_MotivNumCor)
+dfmn15$w4_MotivNumCCor <- as.factor(dfmn15$w4_MotivNumCCor)
+dfmn15$w4_MotivNumCRev <- as.factor(dfmn15$w4_MotivNumCRev)
+dfmn15$w4_MotivNumCNRev <- as.factor(dfmn15$w4_MotivNumCNRev)
+dfmn15$w4_MotivNumHCRev <- as.factor(dfmn15$w4_MotivNumHCRev)
+
+dfmn15$w5_MotivNumTHit <- as.factor(dfmn15$w5_MotivNumTHit)
+dfmn15$w5_MotivNumBHit <- as.factor(dfmn15$w5_MotivNumBHit)
+
+dfmn15$w5_MotivNumTCor <- as.factor(dfmn15$w5_MotivNumTCor)
+dfmn15$w5_MotivNumBCor <- as.factor(dfmn15$w5_MotivNumBCor)
+
+dfmn15$w5_MotivNumTBRev <- as.factor(dfmn15$w5_MotivNumTBRev)
+dfmn15$w5_MotivNumBTRev <- as.factor(dfmn15$w5_MotivNumBTRev)
+
+dfmn15$w5_MotivNumCTRev <- as.factor(dfmn15$w5_MotivNumCTRev)
+dfmn15$w5_MotivNumTCRev <- as.factor(dfmn15$w5_MotivNumTCRev)
+dfmn15$w5_MotivNumCBRev <- as.factor(dfmn15$w5_MotivNumCBRev)
+dfmn15$w5_MotivNumBCRev <- as.factor(dfmn15$w5_MotivNumBCRev)
+
+dfmn15$w5_MotivNumTBHCRev <- as.factor(dfmn15$w5_MotivNumTBHCRev)
+dfmn15$w5_MotivNumBTHCRev <- as.factor(dfmn15$w5_MotivNumBTHCRev)
+
+dfmn15$w5_MotivNumCTHCRev <- as.factor(dfmn15$w5_MotivNumCTHCRev)
+dfmn15$w5_MotivNumTCHCRev <- as.factor(dfmn15$w5_MotivNumTCHCRev)
+dfmn15$w5_MotivNumCBHCRev <- as.factor(dfmn15$w5_MotivNumCBHCRev)
+dfmn15$w5_MotivNumBCHCRev <- as.factor(dfmn15$w5_MotivNumBCHCRev)
+
+
+dfmn5 %>% 
+  select(w5_MRproduct, w5_MRessential, contains("MotivNum"), contains("Scored"), 
+         contains("LvC"), contains("Con_Lib"), -contains("VL"), -contains("Bene"), 
+         -contains("Know"), -contains("Risk")) %>% 
+  str()
+
+dfmn15 %>% 
+  select(w5_MRproduct, w5_MRessential, contains("MotivNum"), contains("Scored"), 
+         contains("LvC"), contains("Con_Lib"), -contains("VL"), -contains("Bene"), 
+         -contains("Know"), -contains("Risk")) %>% 
+  str()
+```
+
+# Split Data by Display Order
+```{r}
+dfmn5T <- dfmn5 %>% 
+  filter(MotivNumDOT == 1)
+dfmn5B <- dfmn5 %>% 
+  filter(MotivNumDOT == 0)
+
+dfmn15T <- dfmn15 %>% 
+  filter(MotivNumDOT == 1)
+dfmn15B <- dfmn5 %>% 
+  filter(MotivNumDOT == 0)
+```
+
+# Simple regressions for descriptives
+
+```{r}
+bantrade4 <- lm(data = dfmn5, w4_Policy1 ~ Con_Lib_mc)
+summary(bantrade4)
+
+bantrade5 <- lm(data = dfmn5, w5_Policy1 ~ Con_Lib_mc)
+summary(bantrade5)
+
+
+unique(dfmn5$w4_Prod)
+
+dfmn5 %>% 
+  select(w4_Prod1) %>% 
+  str()
+
+
+dfmn5$w5_wuhanpurch <- dfmn5 %>% 
+  select(dfmn5$w5_Prod1, dfmn5$w5_Prod2, dfmn5$w5_Prod3) %>% 
+  apply(., 1, mean, na.rm=T)
+  
+dfmn5$w5_wuhanpurch <- mean(c(dfmn5$w5_Prod1, dfmn5$w5_Prod2, dfmn5$w5_Prod3), na.rm=T)
+
+
+dfmn5 %>% 
+  select(w5_wuhanpurch) %>% 
+  head()
+
+dfmn5 %>% 
+  select(Age) %>% 
+  psych::describe()
+
+library(plyr)
+
+dfmn5$w4_GatherSize <- as.character(dfmn5$w4_GatherSize)
+
+dfmn5$w4_GatherSize01 <- revalue(dfmn5$w4_GatherSize, c("1" = "1",
+                                                          "2" = "0"))
+dfmn5$w4_GatherSize01 <- as.numeric(dfmn5$w4_GatherSize01)
+
+dfmn5$w4_GatherSize01 %>% 
+  psych::describe()
+
+bangrp <- lm(data = dfmn5, w4_GatherSize01 ~ Con_Lib_mc)
+summary(bangrp)
+
+dfmn5$w4_GatherSize_1_TEXT %>% 
+  str()
+
+dfmn5$w4_GatherSize_1_TEXT <- as.numeric(dfmn5$w4_GatherSize_1_TEXT)
+
+bangrpsize <- lm(data = dfmn5, w4_GatherSize_1_TEXT ~ Con_Lib_mc)
+summary(bangrpsize)
+
+
+```
+
+
+# Logistic Regression
+
+## Pre-Registered Wave 5
+*Ideology not collapsed.*
+
+### W5 Hit Rate Selection
+
+#### Trade
+
+```{r}
+#MotivNum, no control
+motivnum5Tnull <- glm(data = dfmn5, family = "binomial", w5_MotivNumTHit ~ 1)
+motivnum5T <- glm(data = dfmn5, family = "binomial", w5_MotivNumTHit ~ ONScored_z * Con_Lib_mc)
+
+anova(motivnum5Tnull, motivnum5T, test = "Chisq") # sig
+
+summary(motivnum5T)
+
+motivnum5TLC <- glm(data = dfmn5, family = "binomial", w5_MotivNumTHit ~ ONScored_z * LvC)
+summary(motivnum5TLC) # just wondering how this affects it, doesn't really
+
+## plot - collapsed
+
+dfmn5 <- dfmn5 %>% 
+  mutate(reported_binT = case_when(w5_MotivNumTHit == "0" ~ 0,
+                                  w5_MotivNumTHit == "1" ~ 1))
+
+ggplot(dfmn5, aes(x = ONScored_z, y = reported_binT, color = LvC)) + 
+  stat_smooth(method="glm", method.args = list(family="binomial"),
+              formula=y~x,
+              alpha=0.2, size=2, aes(fill=LvC)) +
+    geom_point(position=position_jitter(height=0.03, width=0)) +
+    labs(x = "Numeracy (z-scored)", y = "P(Hit Rate Selection)") +
+  scale_fill_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  scale_color_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  theme_minimal() +
+  theme(text = element_text(size=14))
+
+
+## plot - continuous
+
+ggplot(dfmn5, aes(x = ONScored_z, y = reported_binT, color = as.factor(Con_Lib_mc))) + 
+  stat_smooth(method="glm", method.args = list(family="binomial"),
+              formula=y~x,
+              alpha=0.2, size=2, aes(fill=as.factor(Con_Lib_mc))) +
+    geom_point(position=position_jitter(height=0.03, width=0)) +
+    labs(x = "Numeracy (z-scored)", y = "P(Hit Rate Selection)",
+       title = "Probability of Hit Rate Selection for Conservative-Motivated Item") +
+  scale_fill_manual(name = "Ideology", labels = c("Con", "Con Leaning", "Lib Leaning", "Lib"), 
+                    values=c("red", "brown", "darkslateblue", "blue")) +
+  scale_color_manual(name = "Ideology", labels = c("Con", "Con Leaning", "Lib Leaning", "Lib"), 
+                    values=c("red", "brown", "darkslateblue", "blue")) +
+  theme_minimal()
+
+#MotivNumTRADE, control for order
+
+motivnum5Tord <- glm(data = dfmn5, family = "binomial", w5_MotivNumTHit ~ ONScored_z * Con_Lib_mc + MotivNumDOT)
+
+anova(motivnum5T, motivnum5Tord, test = "Chisq") # ns
+
+summary(motivnum5Tord)
+
+  #
+
+motivnum5Tonlynull <- glm(data = dfmn5T, family = "binomial", w5_MotivNumTHit ~ 1)
+motivnum5Tonly <- glm(data = dfmn5T, family = "binomial", w5_MotivNumTHit ~ ONScored_z * Con_Lib_mc)
+
+anova(motivnum5Tonlynull, motivnum5Tonly, test = "Chisq") # ns
+
+summary(motivnum5Tonly)
+
+#MotivNumTRADE, control
+motivnumcont5T <- glm(data = dfmn5, family = "binomial", w5_MotivNumTHit ~ ONScored_z * Con_Lib_mc + VerbLogScored_z)
+
+anova(motivnum5T, motivnumcont5T, test = "Chisq") # ns
+
+summary(motivnumcont5T)
+
+#MotivNum, control w/ interaction
+motivnumcont_int5T <- glm(data = dfmn5, family = "binomial", w5_MotivNumTHit ~ Con_Lib_mc * VerbLogScored_z
+                           + Con_Lib_mc * ONScored_z)
+
+anova(motivnum5T, motivnumcont_int5T, test = "Chisq") # ns
+
+summary(motivnumcont_int5T)
+
+```
+
+#### odds
+```{r}
+exp(cbind(coef(motivnum5T), confint(motivnum5T))) 
+0.7454591 / (1+0.7454591)
+```
+
+```{r}
+#Descriptive Plots--Choice Not Collapsed, fill = Ideology (collapsed)
+
+dfmn5 %>% 
+  filter(LvC == 1) %>% 
+  nrow()
+
+TradeLPercent <- dfmn5 %>% 
+  filter(LvC == 1) %>% 
+  group_by(w5_MRproduct) %>% 
+  summarise(n = n(),
+            percent = (n / 318)*100,
+            LvC = "Con")
+
+dfmn5 %>% 
+  filter(LvC == 0) %>% 
+  nrow()
+
+TradeCPercent <- dfmn5 %>% 
+  filter(LvC == 0) %>% 
+  group_by(w5_MRproduct) %>% 
+  summarise(n = n(),
+            percent = (n / 499)*100,
+            LvC = "Lib")
+
+TradeDescPlot <- rbind(TradeLPercent, TradeCPercent)
+
+ggplot(data = TradeDescPlot, aes(x = as.character(w5_MRproduct), y = percent, fill = as.factor(LvC))) +
+  geom_bar(position = "dodge", stat = "identity") +
+  scale_y_continuous(limits = c(0, 100)) +
+  labs(x = "Probability Chosen", y = "Percent of Participants", fill = "Ideology") +
+  scale_fill_manual(values=c("red", "blue")) +
+  scale_x_discrete(labels = c("1" = "Base Rate", "2" = "Base Rate", "3" = "Hit Rate", "4" = "Correct")) +
+  theme_minimal() +
+  theme(text = element_text(size=14))
+
+
+```
+
+#### Business
+
+```{r}
+#MotivNum, no control
+motivnum5Bnull <- glm(data = dfmn5, family = "binomial", w5_MotivNumBHit ~ 1)
+motivnum5B <- glm(data = dfmn5, family = "binomial", w5_MotivNumBHit ~ ONScored_z * Con_Lib_mc)
+
+anova(motivnum5Bnull, motivnum5B, test = "Chisq") # sig
+
+summary(motivnum5B)
+
+
+motivnum5BLC <- glm(data = dfmn5, family = "binomial", w5_MotivNumBHit ~ ONScored_z * LvC)
+summary(motivnum5BLC) # just checking, doesn't make much of a difference
+
+## plot -- cont
+
+dfmn5 <- dfmn5 %>% 
+  mutate(reported_binB = case_when(w5_MotivNumBHit == "0" ~ 0,
+                                  w5_MotivNumBHit == "1" ~ 1))
+
+ggplot(dfmn5, aes(x = ONScored_z, y = reported_binB, color = as.factor(Con_Lib_mc))) + 
+  stat_smooth(method="glm", method.args = list(family="binomial"),
+              formula=y~x,
+              alpha=0.2, size=2, aes(fill=as.factor(Con_Lib_mc))) +
+    geom_point(position=position_jitter(height=0.03, width=0)) +
+    labs(x = "Numeracy (z-scored)", y = "P(Hit Rate Selection)",
+       title = "Probability of Hit Rate Selection for Liberal-Motivated Item") +
+  scale_fill_manual(name = "Ideology", labels = c("Con", "Con Lean", "Lib Lean", "Lib"), 
+                    values=c("red", "brown", "darkslateblue", "blue")) +
+  scale_color_manual(name = "Ideology", labels = c("Con", "Con Lean", "Lib Lean", "Lib"), 
+                    values=c("red", "brown", "darkslateblue", "blue")) +
+  theme_minimal() 
+
+## plot - collapsed
+
+ggplot(dfmn5, aes(x = ONScored_z, y = reported_binB, color = LvC)) + 
+  stat_smooth(method="glm", method.args = list(family="binomial"),
+              formula=y~x,
+              alpha=0.2, size=2, aes(fill=LvC)) +
+    geom_point(position=position_jitter(height=0.03, width=0)) +
+    labs(x = "Numeracy (z-scored)", y = "P(Hit Rate Selection)") +
+  scale_fill_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  scale_color_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  theme_minimal()+
+  theme(text = element_text(size=14))
+
+
+#MotivNum, control for order
+
+motivnum5Bord <- glm(data = dfmn5, family = "binomial", w5_MotivNumBHit ~ ONScored_z * Con_Lib_mc + MotivNumDOT)
+
+anova(motivnum5B, motivnum5Bord, test = "Chisq") # ns
+
+summary(motivnum5Bord)
+
+  #
+
+motivnum5Bonlynull <- glm(data = dfmn5B, family = "binomial", w5_MotivNumBHit ~ 1)
+motivnum5Bonly <- glm(data = dfmn5B, family = "binomial", w5_MotivNumBHit ~ ONScored_z * Con_Lib_mc)
+
+anova(motivnum5Bonlynull, motivnum5Bonly, test = "Chisq") # ns
+
+summary(motivnum5Bonly)
+
+## plot - collapsed
+
+dfmn5B <- dfmn5B %>% 
+  mutate(reported_binB = case_when(w5_MotivNumBHit == "0" ~ 0,
+                                  w5_MotivNumBHit == "1" ~ 1))
+
+ggplot(dfmn5B, aes(x = ONScored_z, y = reported_binB, color = LvC)) + 
+  stat_smooth(method="glm", method.args = list(family="binomial"),
+              formula=y~x,
+              alpha=0.2, size=2, aes(fill=LvC)) +
+    geom_point(position=position_jitter(height=0.03, width=0)) +
+    labs(x = "Numeracy (z-scored)", y = "P(Hit Rate Selection)") +
+  scale_fill_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  scale_color_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  theme_minimal()+
+  theme(text = element_text(size=14))
+
+
+
+#MotivNum, control
+motivnumcont5B <- glm(data = dfmn5, family = "binomial", w5_MotivNumBHit ~ ONScored_z * Con_Lib_mc + VerbLogScored_z)
+
+anova(motivnum5B, motivnumcont5B, test = "Chisq") # ns
+
+summary(motivnumcont5B)
+
+#MotivNum, control and order effects
+motivnumcont5Bonly <- glm(data = dfmn5B, family = "binomial", w5_MotivNumBHit ~ ONScored_z * Con_Lib_mc + VerbLogScored_z)
+
+anova(motivnum5Bonly, motivnumcont5Bonly, test = "Chisq") # ns
+
+summary(motivnumcont5Bonly)
+
+#MotivNum, control w/ interaction
+motivnumcont_int5B <- glm(data = dfmn5, family = "binomial", w5_MotivNumBHit ~ Con_Lib_mc * VerbLogScored_z
+                           + Con_Lib_mc * ONScored_z)
+
+anova(motivnum5B, motivnumcont_int5B, test = "Chisq") # ns
+
+summary(motivnumcont_int5B)
+
+```
+
+#### odds
+```{r}
+exp(cbind(coef(motivnum5B), confint(motivnum5B)))
+1.1937081 / (1+1.1937081)
+```
+
+##### Decompose Interaction
+
+```{r}
+# Ideology score split
+
+dfmn5 %>% 
+  group_by(LvC) %>% 
+  count() # more liberals than conservatives
+
+dfliberals <- dfmn5 %>% 
+  filter(LvC == 0)
+dfconservatives <- dfmn5 %>% 
+  filter(LvC == 1)
+
+mean(dfliberals$Con_Lib_mc) # average mean-centered score for liberals = 0.55
+mean(dfconservatives$Con_Lib_mc) # average mean-centered score for conservatives = -0.85
+
+# Test simple slopes
+simple_slopes(motivnum5B, levels = list(Con_Lib_mc = c(0.547851, -0.8475814)))
+
+dfmn5 %>% 
+  group_by(ONScored_z) %>% 
+  count()
+71+252
+291+133+70 # more people who did well than did poorly on ONS
+
+dfONSbad <- dfmn5 %>% 
+  filter(ONScored_z < 0)
+dfONSgood <- dfmn5 %>% 
+  filter(ONScored_z > 0)
+
+mean(dfONSbad$ONScored_z) # average mean-centered score for bad ONS = -0.97
+mean(dfONSgood$ONScored_z) # average mean-centered score for good ONS = 0.71
+
+simple_slopes(motivnum5B, levels = list(ONScored_z = c(-0.9655676, 0.7115725)))
+
+
+```
+
+```{r}
+#Descriptive Plots--Choice Not Collapsed, fill = Ideology (collapsed)
+
+dfmn5 %>% 
+  filter(LvC == 1) %>% 
+  nrow()
+
+BusinessLPercent <- dfmn5 %>% 
+  filter(LvC == 1) %>% 
+  group_by(w5_MRessential) %>% 
+  summarise(n = n(),
+            percent = (n / 318)*100,
+            LvC = "Con")
+
+dfmn5 %>% 
+  filter(LvC == 0) %>% 
+  nrow()
+
+BusinessCPercent <- dfmn5 %>% 
+  filter(LvC == 0) %>% 
+  group_by(w5_MRessential) %>% 
+  summarise(n = n(),
+            percent = (n / 499)*100,
+            LvC = "Lib")
+
+BusinessDescPlot <- rbind(BusinessLPercent, BusinessCPercent)
+
+ggplot(data = BusinessDescPlot, aes(x = as.character(w5_MRessential), y = percent, fill = as.factor(LvC))) +
+  geom_bar(position = "dodge", stat = "identity") +
+  scale_y_continuous(limits = c(0, 100)) +
+  labs(x = "Probability Chosen", y = "Percent of Participants", fill = "Ideology") +
+  scale_fill_manual(values=c("red", "blue")) +
+  scale_x_discrete(labels = c("1" = "Base Rate", "2" = "Base Rate", "3" = "Hit Rate", "4" = "Correct")) +
+  theme_minimal() +
+  theme(text = element_text(size=14))
+
+
+
+```
+
+
+### W5 IMRI
+
+```{r}
+#df15$w5_MotivNumTBRev <- if_else(df15$w5_MRproduct == 3 & df15$w5_MRessential != 3, 1, 0, 0)
+#df15$w5_MotivNumBTRev <- if_else(df15$w5_MRessential == 3 & df15$w5_MRproduct != 3, 1, 0, 0)
+
+```
+
+#### Trade - Business IMRI (Con IMRI)
+```{r}
+#MotivNumTB, no control
+motivnum5TBnull <- glm(data = dfmn5, family = "binomial", w5_MotivNumTBRev ~ 1)
+motivnum5TB <- glm(data = dfmn5, family = "binomial", w5_MotivNumTBRev ~ ONScored_z * Con_Lib_mc)
+
+anova(motivnum5TBnull, motivnum5TB, test = "Chisq") # sig
+
+summary(motivnum5TB)
+
+## plot - collapsed
+
+dfmn5 <- dfmn5 %>% 
+  mutate(reported_binTB = case_when(w5_MotivNumTBRev == "0" ~ 0,
+                                  w5_MotivNumTBRev == "1" ~ 1))
+
+ggplot(dfmn5, aes(x = ONScored_z, y = reported_binTB, color = LvC)) + 
+  stat_smooth(method="glm", method.args = list(family="binomial"),
+              formula=y~x,
+              alpha=0.2, size=2, aes(fill=LvC)) +
+    geom_point(position=position_jitter(height=0.03, width=0)) +
+    labs(x = "Numeracy (z-scored)", y = "P(Con-Motivated RI)") +
+  scale_fill_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  scale_color_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  theme_minimal()+
+  theme(text = element_text(size=14))
+
+
+## plot - continuous
+
+ggplot(dfmn5, aes(x = ONScored_z, y = reported_binTB, color = as.factor(Con_Lib_mc))) + 
+  stat_smooth(method="glm", method.args = list(family="binomial"),
+              formula=y~x,
+              alpha=0.2, size=2, aes(fill=as.factor(Con_Lib_mc))) +
+    geom_point(position=position_jitter(height=0.03, width=0)) +
+    labs(x = "Numeracy (z-scored)", y = "P(Con-Motivated RI)",
+       title = "Probability of Conservative-Motivated Response Inconsistency") +
+  scale_fill_manual(name = "Ideology", labels = c("Con", "Con Lean", "Lib Lean", "Lib"), 
+                    values=c("red", "brown", "darkslateblue", "blue")) +
+  scale_color_manual(name = "Ideology", labels = c("Con", "Con Lean", "Lib Lean", "Lib"), 
+                     values=c("red", "brown", "darkslateblue", "blue")) +
+  theme_minimal()
+
+#MotivNumPR, control for order
+
+motivnum5TBord <- glm(data = dfmn5, family = "binomial", w5_MotivNumTBRev ~ ONScored_z * Con_Lib_mc +
+                        MotivNumDOT)
+
+anova(motivnum5TB, motivnum5TBord, test = "Chisq") # ns
+
+summary(motivnum5TBord)
+
+#MotivNumPR, control
+motivnumcont5TB <- glm(data = dfmn5, family = "binomial", w5_MotivNumTBRev ~ ONScored_z * Con_Lib_mc + VerbLogScored_z)
+
+anova(motivnum5TBnull, motivnumcont5TB, test = "Chisq") # sig
+
+summary(motivnumcont5TB)
+
+#MotivNumPR, control w/ display order
+motivnumcont5TBdo <- glm(data = dfmn5, family = "binomial", w5_MotivNumTBRev ~ ONScored_z * Con_Lib_mc + VerbLogScored_z + MotivNumDOT)
+
+anova(motivnum5TBnull, motivnumcont5TBdo, test = "Chisq") # sig
+
+summary(motivnumcont5TBdo)
+
+#MotivNumPR, control w/ interaction
+motivnumcont_int5TB <- glm(data = dfmn5, family = "binomial", w5_MotivNumTBRev ~ Con_Lib_mc * VerbLogScored_z + LvC * ONScored_z)
+
+anova(motivnum5TBnull, motivnumcont_int5TB, test = "Chisq") # ns
+
+summary(motivnumcont_int5TB)
+
+```
+
+```{r}
+dfmn5 %>% 
+  filter(LvC == 1) %>% 
+  nrow()
+
+TBLPercent <- dfmn5 %>% 
+  filter(LvC == 1) %>% 
+  group_by(w5_MotivNumTBRev) %>% 
+  summarise(n = n(),
+            percent = (n / 318)*100,
+            LvC = "Con")
+
+dfmn5 %>% 
+  filter(LvC == 0) %>% 
+  nrow()
+
+TBCPercent <- dfmn5 %>% 
+  filter(LvC == 0) %>% 
+  group_by(w5_MotivNumTBRev) %>% 
+  summarise(n = n(),
+            percent = (n / 499)*100,
+            LvC = "Lib")
+
+TBRevDescPlot <- rbind(TBLPercent, TBCPercent)
+
+ggplot(data = TBRevDescPlot, aes(x = as.character(w5_MotivNumTBRev), y = percent, fill = as.factor(LvC))) +
+  geom_bar(position = "dodge", stat = "identity") +
+  scale_y_continuous(limits = c(0, 100)) +
+  labs(x = "Ideologically-Motivated Response Inconsistency", y = "Percent of Participants", fill = "Ideology") +
+  scale_fill_manual(values=c("red", "blue")) +
+  scale_x_discrete(labels = c("0" = "No", "1" = "Yes")) +
+  theme_minimal()
+
+
+```
+
+
+#### Business - Trade IMRI (Lib IMRI)
+```{r}
+#MotivNumTB, no control
+motivnum5BTnull <- glm(data = dfmn5, family = "binomial", w5_MotivNumBTRev ~ 1)
+motivnum5BT <- glm(data = dfmn5, family = "binomial", w5_MotivNumBTRev ~ ONScored_z * Con_Lib_mc)
+
+anova(motivnum5BTnull, motivnum5BT, test = "Chisq") # sig
+
+summary(motivnum5BT)
+
+## plot - collapsed
+
+dfmn5 <- dfmn5 %>% 
+  mutate(reported_binBT = case_when(w5_MotivNumBTRev == "0" ~ 0,
+                                  w5_MotivNumBTRev == "1" ~ 1))
+
+ggplot(dfmn5, aes(x = ONScored_z, y = reported_binBT, color = LvC)) + 
+  stat_smooth(method="glm", method.args = list(family="binomial"),
+              formula=y~x,
+              alpha=0.2, size=2, aes(fill=LvC)) +
+    geom_point(position=position_jitter(height=0.03, width=0)) +
+    labs(x = "Numeracy (z-scored)", y = "P(Lib-Motivated RI)") +
+  scale_fill_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  scale_color_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  theme_minimal()+
+  theme(text = element_text(size=14))
+
+
+## plot - continuous
+
+ggplot(dfmn5, aes(x = ONScored_z, y = reported_binBT, color = as.factor(Con_Lib_mc))) + 
+  stat_smooth(method="glm", method.args = list(family="binomial"),
+              formula=y~x,
+              alpha=0.2, size=2, aes(fill=as.factor(Con_Lib_mc))) +
+    geom_point(position=position_jitter(height=0.03, width=0)) +
+    labs(x = "ONS (z-scored)", y = "Pr(Preference Reversal)",
+       title = "Probability of Liberal-Motivated Response Inconsistency") +
+  scale_fill_manual(name = "Ideology", labels = c("Con", "Con Lean", "Lib Lean", "Lib"), 
+                    values=c("red", "brown", "darkslateblue", "blue")) +
+  scale_color_manual(name = "Ideology", labels = c("Con", "Con Lean", "Lib Lean", "Lib"), 
+                    values=c("red", "brown", "darkslateblue", "blue")) +
+  theme_minimal()
+
+#MotivNumPR, control for order
+motivnum5BTord <- glm(data = dfmn5, family = "binomial", w5_MotivNumBTRev ~ ONScored_z * Con_Lib_mc +
+                        MotivNumDOT)
+
+anova(motivnum5BT, motivnum5BTord, test = "Chisq") # ns
+
+summary(motivnum5BTord)
+
+#MotivNumPR, control
+motivnumcont5BT <- glm(data = dfmn5, family = "binomial", w5_MotivNumBTRev ~ ONScored_z * Con_Lib_mc + VerbLogScored_z)
+
+anova(motivnum5BT, motivnumcont5BT, test = "Chisq") # sig
+
+summary(motivnumcont5TB)
+
+#MotivNumPR, control w/ interaction
+motivnumcont_int5BT <- glm(data = dfmn5, family = "binomial", w5_MotivNumBTRev ~ Con_Lib_mc * VerbLogScored_z + LvC * ONScored_z)
+
+anova(motivnum5BT, motivnumcont_int5BT, test = "Chisq") # ns
+
+summary(motivnumcont_int5BT)
+
+```
+
+```{r}
+dfmn5 %>% 
+  filter(LvC == 1) %>% 
+  nrow()
+
+BTLPercent <- dfmn5 %>% 
+  filter(LvC == 1) %>% 
+  group_by(w5_MotivNumBTRev) %>% 
+  summarise(n = n(),
+            percent = (n / 318)*100,
+            LvC = "Con")
+
+dfmn5 %>% 
+  filter(LvC == 0) %>% 
+  nrow()
+
+BTCPercent <- dfmn5 %>% 
+  filter(LvC == 0) %>% 
+  group_by(w5_MotivNumBTRev) %>% 
+  summarise(n = n(),
+            percent = (n / 499)*100,
+            LvC = "Lib")
+
+BTRevDescPlot <- rbind(BTLPercent, BTCPercent)
+
+ggplot(data =BTRevDescPlot, aes(x = as.character(w5_MotivNumBTRev), y = percent, fill = as.factor(LvC))) +
+  geom_bar(position = "dodge", stat = "identity") +
+  scale_y_continuous(limits = c(0, 100)) +
+  labs(x = "Ideologically-Motivated Response Inconsistency", y = "Percent of Participants", fill = "Ideology") +
+  scale_fill_manual(values=c("red", "blue")) +
+  scale_x_discrete(labels = c("0" = "No", "1" = "Yes")) +
+  theme_minimal()
+```
+
+##IMRI plot FYP pres
+```{r}
+library(dplyr)
+
+IMRIplotTB <- TBRevDescPlot
+
+IMRIplotTB$IMRIy <- IMRIplotTB$w5_MotivNumTBRev
+
+IMRIplotTB <- IMRIplotTB %>% 
+  select(IMRIy, n, percent, LvC) %>% 
+  filter(IMRIy == 1)
+
+IMRIplotTB$libmot <- c(0, 0)
+
+IMRIplotBT <- BTRevDescPlot
+
+IMRIplotBT$IMRIy <- IMRIplotBT$w5_MotivNumBTRev
+
+IMRIplotBT <- IMRIplotBT %>% 
+  dplyr::select(IMRIy, n, percent, LvC) %>% 
+  filter(IMRIy == 1)
+
+IMRIplotBT$libmot <- c(1, 1)
+
+IMRIyDescPlot <- rbind(IMRIplotTB, IMRIplotBT)
+
+IMRIyDescPlot <- IMRIyDescPlot %>% 
+  dplyr::select(libmot, n, percent, LvC)
+
+ggplot(data = IMRIyDescPlot, aes(x = as.character(libmot), y = percent, fill = as.factor(LvC))) +
+  geom_bar(position = "dodge", stat = "identity") +
+  scale_y_continuous(limits = c(0, 100)) +
+  labs(x = "Ideologically-Motivated Response Inconsistency", y = "Percent of Participants", fill = "Ideology") +
+  scale_fill_manual(values=c("red", "blue")) +
+  scale_x_discrete(labels = c("0" = "Conservative-Motivated", "1" = "Liberal-Motivated")) +
+  theme_minimal() + 
+  theme(text = element_text(size=14))
+
+
+```
+
+
+#### W5 Trade-Business Hit-Correct Preference Reversal (EA)
+
+```{r}
+#df15$w5_MotivNumTBHCRev <- if_else(df15$w5_MRproduct == 3 & df15$w5_MRessential == 4, 1, 0, 0)
+#df15$w5_MotivNumBTHCRev <- if_else(df15$w5_MRessential == 3 & df15$w5_MRproduct == 4, 1, 0, 0)
+
+```
+
+```{r}
+#MotivNumPR, no control
+motivnum5TBHCnull <- glm(data = dfmn5, family = "binomial", w5_MotivNumTBHCRev ~ 1)
+motivnum5TBHC <- glm(data = dfmn5, family = "binomial", w5_MotivNumTBHCRev ~ ONScored_z * Con_Lib_mc)
+
+anova(motivnum5TBHCnull, motivnum5TBHC, test = "Chisq") # ns
+
+summary(motivnum5TBHC)
+
+## plot
+
+dfmn5 <- dfmn5 %>% 
+  mutate(reported_binTBHC = case_when(w5_MotivNumTBHCRev == "0" ~ 0,
+                                  w5_MotivNumTBHCRev == "1" ~ 1))
+
+ggplot(dfmn5, aes(x = ONScored_z, y = reported_binTBHC, color = LvC)) + 
+  stat_smooth(method="glm", method.args = list(family="binomial"),
+              formula=y~x,
+              alpha=0.2, size=2, aes(fill=LvC)) +
+    geom_point(position=position_jitter(height=0.03, width=0)) +
+    labs(x = "ONS (z-scored)", y = "Pr(Preference Reversal Hit-Correct)",
+       title = "Probability of T-B Preference Reversal Hit-Correct by ONS and Ideology",
+       caption = "Wave 4 sample, 95% confidence bands. \nPreference reversal indicates participants selected hit rate for W2 \nPoliticized item but the correct probability for W4 Control item.") +
+  scale_fill_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  scale_color_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  theme_minimal()
+
+#MotivNumPR, control
+motivnumcont5TBHC <- glm(data = dfmn5, family = "binomial", w5_MotivNumTBHCRev ~ ONScored_z * Con_Lib_mc + VerbLogScored_z)
+
+anova(motivnum5TBHCnull, motivnumcont5TBHC, test = "Chisq") # ns
+
+summary(motivnumcont5TBHC)
+
+#MotivNumPR, control w/ interaction
+motivnumcont_int5TBHC <- glm(data = dfmn5, family = "binomial", w5_MotivNumTBHCRev ~ Con_Lib_mc * VerbLogScored_z + LvC * ONScored_z)
+
+anova(motivnum5TBHCnull, motivnumcont_int5TBHC, test = "Chisq") # ns
+
+summary(motivnumcont_int5TBHC)
+
+```
+
+#### W5 Business-Trade Hit-Correct Preference Reversal (EA)
+
+```{r}
+#df15$w5_MotivNumTBHCRev <- if_else(df15$w5_MRproduct == 3 & df15$w5_MRessential == 4, 1, 0, 0)
+#df15$w5_MotivNumBTHCRev <- if_else(df15$w5_MRessential == 3 & df15$w5_MRproduct == 4, 1, 0, 0)
+
+```
+
+```{r}
+#MotivNumPR, no control
+motivnum5BTHCnull <- glm(data = dfmn5, family = "binomial", w5_MotivNumBTHCRev ~ 1)
+motivnum5BTHC <- glm(data = dfmn5, family = "binomial", w5_MotivNumBTHCRev ~ ONScored_z * Con_Lib_mc)
+
+anova(motivnum5BTHCnull, motivnum5BTHC, test = "Chisq") # sig
+
+summary(motivnum5BTHC)
+
+## plot
+
+dfmn5 <- dfmn5 %>% 
+  mutate(reported_binTBHC = case_when(w5_MotivNumBTHCRev == "0" ~ 0,
+                                  w5_MotivNumBTHCRev == "1" ~ 1))
+
+ggplot(dfmn5, aes(x = ONScored_z, y = reported_binTBHC, color = LvC)) + 
+  stat_smooth(method="glm", method.args = list(family="binomial"),
+              formula=y~x,
+              alpha=0.2, size=2, aes(fill=LvC)) +
+    geom_point(position=position_jitter(height=0.03, width=0)) +
+    labs(x = "ONS (z-scored)", y = "Pr(Preference Reversal Hit-Correct)",
+       title = "Probability of T-B Preference Reversal Hit-Correct by ONS and Ideology",
+       caption = "Wave 4 sample, 95% confidence bands. \nPreference reversal indicates participants selected hit rate for W2 \nPoliticized item but the correct probability for W4 Control item.") +
+  scale_fill_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  scale_color_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  theme_minimal()
+
+#MotivNumPR, control
+motivnumcont5BTHC <- glm(data = dfmn5, family = "binomial", w5_MotivNumBTHCRev ~ ONScored_z * Con_Lib_mc + VerbLogScored_z)
+
+anova(motivnum5BTHCnull, motivnumcont5BTHC, test = "Chisq") # sig
+
+summary(motivnumcont5BTHC)
+
+#MotivNumPR, control w/ interaction
+motivnumcont_int5BTHC <- glm(data = dfmn5, family = "binomial", w5_MotivNumBTHCRev ~ Con_Lib_mc * VerbLogScored_z + LvC * ONScored_z)
+
+anova(motivnumcont5BTHC, motivnumcont_int5BTHC, test = "Chisq") # ns
+
+summary(motivnumcont_int5BTHC)
+
+```
+
+### W5 Control Preference Reversals (EA)
+
+#### Trade-Control Preference Reversals
+
+```{r}
+#df15$w5_MotivNumTCRev <- if_else(df15$w5_MRproduct == 3 & df15$w4_MotivNum != 3, 1, 0, 0)
+
+```
+
+```{r}
+#MotivNumTC, no control
+motivnum5TCnull <- glm(data = dfmn15, family = "binomial", w5_MotivNumTCRev ~ 1)
+motivnum5TC <- glm(data = dfmn15, family = "binomial", w5_MotivNumTCRev ~ ONScored_z * Con_Lib_mc)
+
+anova(motivnum5TCnull, motivnum5TC, test = "Chisq") # sig
+
+summary(motivnum5TC)
+
+## plot - collapsed
+
+dfmn15 <- dfmn15 %>% 
+  mutate(reported_binTC = case_when(w5_MotivNumTCRev == "0" ~ 0,
+                                  w5_MotivNumTCRev == "1" ~ 1))
+
+ggplot(dfmn15, aes(x = ONScored_z, y = reported_binTC, color = LvC)) + 
+  stat_smooth(method="glm", method.args = list(family="binomial"),
+              formula=y~x,
+              alpha=0.2, size=2, aes(fill=LvC)) +
+    geom_point(position=position_jitter(height=0.03, width=0)) +
+    labs(x = "ONS (z-scored)", y = "Pr(Preference Reversal)",
+       title = "Probability of W5 T-C Response Inconsistency by ONS and Ideology",
+       caption = "Wave 4 sample, 95% confidence bands. \nPreference reversal indicates participants selected hit rate for W2 Coronavirus item but not for W4 Control item.") +
+  scale_fill_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  scale_color_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  theme_minimal()
+
+## plot - continuous
+
+ggplot(dfmn15, aes(x = ONScored_z, y = reported_binTC, color = as.factor(Con_Lib_mc))) + 
+  stat_smooth(method="glm", method.args = list(family="binomial"),
+              formula=y~x,
+              alpha=0.2, size=2, aes(fill=as.factor(Con_Lib_mc))) +
+    geom_point(position=position_jitter(height=0.03, width=0)) +
+    labs(x = "ONS (z-scored)", y = "Pr(Preference Reversal)",
+       title = "Probability of W5 T-C Response Inconsistency by ONS and Ideology",
+       caption = "Wave 4 sample, 95% confidence bands. \nPreference reversal indicates participants selected hit rate for W2 Coronavirus item but not for W4 Control item.") +
+  scale_fill_manual(name = "Ideology", labels = c("Con", "Con Lean", "Lib Lean", "Lib"), 
+                    values=c("red", "brown", "darkslateblue", "blue")) +
+  scale_color_manual(name = "Ideology", labels = c("Con", "Con Lean", "Lib Lean", "Lib"), 
+                    values=c("red", "brown", "darkslateblue", "blue")) +
+  theme_minimal()
+
+#MotivNumPR, control for order
+motivnum5TCord <- glm(data = dfmn15, family = "binomial", w5_MotivNumTCRev ~ ONScored_z * Con_Lib_mc * MotivNumDOT)
+
+anova(motivnum5TC, motivnum5TCord, test = "Chisq") # ns
+
+summary(motivnum5TCord)
+
+  ##
+
+motivnum5TCTonlynull <- glm(data = dfmn15T, family = "binomial", w5_MotivNumTCRev ~ 1)
+motivnum5TCTonly <- glm(data = dfmn15T, family = "binomial", w5_MotivNumTCRev ~ ONScored_z * Con_Lib_mc)
+
+anova(motivnum5TCTonlynull, motivnum5TCTonly, test = "Chisq") # sig
+
+summary(motivnum5TCTonly)
+
+#MotivNumPR, control
+motivnumcont5TC <- glm(data = dfmn15, family = "binomial", w5_MotivNumTCRev ~ ONScored_z * Con_Lib_mc + VerbLogScored_z)
+
+anova(motivnum5TC, motivnumcont5TC, test = "Chisq") # ns
+
+summary(motivnumcont5TC)
+
+#MotivNumPR, control w/ interaction
+motivnumcont_int5TC <- glm(data = dfmn15, family = "binomial", w5_MotivNumTCRev ~ Con_Lib_mc * VerbLogScored_z + LvC * ONScored_z)
+
+anova(motivnum5TC, motivnumcont_int5TC, test = "Chisq") # ns
+
+summary(motivnumcont_int5TC)
+```
+
+## Display Order Interaction
+```{r}
+## plot - collapsed
+
+dfmn15T <- dfmn15T %>% 
+  mutate(reported_binTCfirst = case_when(w5_MotivNumTCRev == "0" ~ 0,
+                                  w5_MotivNumTCRev == "1" ~ 1))
+
+ggplot(dfmn15T, aes(x = ONScored_z, y = reported_binTCfirst, color = LvC)) + 
+  stat_smooth(method="glm", method.args = list(family="binomial"),
+              formula=y~x,
+              alpha=0.2, size=2, aes(fill=LvC)) +
+    geom_point(position=position_jitter(height=0.03, width=0)) +
+    labs(x = "ONS (z-scored)", y = "Pr(Preference Reversal)",
+       title = "Probability of W5 T-C Response Inconsistency by ONS and Ideology") +
+  scale_fill_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  scale_color_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  theme_minimal()
+
+dfmn15B <- dfmn15B %>% 
+  mutate(reported_binTCBfirst = case_when(w5_MotivNumTCRev == "0" ~ 0,
+                                  w5_MotivNumTCRev == "1" ~ 1))
+
+ggplot(dfmn15B, aes(x = ONScored_z, y = reported_binTCBfirst, color = LvC)) + 
+  stat_smooth(method="glm", method.args = list(family="binomial"),
+              formula=y~x,
+              alpha=0.2, size=2, aes(fill=LvC)) +
+    geom_point(position=position_jitter(height=0.03, width=0)) +
+    labs(x = "ONS (z-scored)", y = "Pr(Preference Reversal)",
+       title = "Probability of W5 T-C Response Inconsistency by ONS and Ideology") +
+  scale_fill_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  scale_color_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  theme_minimal()
+
+##
+
+# Ideology score split
+
+dfmn15 %>% 
+  group_by(LvC) %>% 
+  count() # more liberals than conservatives
+
+dfliberals <- dfmn15 %>% 
+  filter(LvC == 0)
+dfconservatives <- dfmn15 %>% 
+  filter(LvC == 1)
+
+mean(dfliberals$Con_Lib_mc) # average mean-centered score for liberals = 0.54
+mean(dfconservatives$Con_Lib_mc) # average mean-centered score for conservatives = -0.85
+
+## Test simple slopes
+simple_slopes(motivnum5TCord, levels = list(Con_Lib_mc = c(0.5376615, -0.8477171), MotivNumDOT = c(0, 1)))
+
+# ONS score split
+
+dfmn15 %>% 
+  group_by(ONScored_z) %>% 
+  count()
+84+317
+364+175+77 # more people who did well than did poorly on ONS
+
+dfONSbad <- dfmn15 %>% 
+  filter(ONScored_z < 0)
+dfONSgood <- dfmn15 %>% 
+  filter(ONScored_z > 0)
+
+mean(dfONSbad$ONScored_z) # average mean-centered score for bad ONS = -0.94
+mean(dfONSgood$ONScored_z) # average mean-centered score for good ONS = 0.73
+
+## Test simple slopes
+simple_slopes(motivnum5TCord, levels = list(ONScored_z = c(-0.943378, 0.7332487), MotivNumDOT = c(0, 1)))
+
+
+```
+
+```{r}
+dfmn15 %>% 
+  filter(LvC == 1) %>% 
+  nrow()
+
+TCLPercent <- dfmn15 %>% 
+  filter(LvC == 1) %>% 
+  group_by(w5_MotivNumTCRev) %>% 
+  summarise(n = n(),
+            percent = (n / 278)*100,
+            LvC = "Con")
+
+dfmn15 %>% 
+  filter(LvC == 0) %>% 
+  nrow()
+
+TCCPercent <- dfmn15 %>% 
+  filter(LvC == 0) %>% 
+  group_by(w5_MotivNumTCRev) %>% 
+  summarise(n = n(),
+            percent = (n / 414)*100,
+            LvC = "Lib")
+
+TCRevDescPlot <- rbind(TCLPercent, TCCPercent)
+
+ggplot(data = TCRevDescPlot, aes(x = as.character(w5_MotivNumTCRev), y = percent, fill = as.factor(LvC))) +
+  geom_bar(position = "dodge", stat = "identity") +
+  scale_y_continuous(limits = c(0, 100)) +
+  labs(x = "Ideologically-Motivated Response Inconsistency", y = "Percent of Participants", fill = "Ideology") +
+  scale_fill_manual(values=c("red", "blue")) +
+  scale_x_discrete(labels = c("0" = "No", "1" = "Yes")) +
+  theme_minimal()
+```
+
+
+```{r}
+#df15$w5_MotivNumTCHCRev <- if_else(df15$w5_MRproduct == 3 & df15$w4_MotivNum == 4, 1, 0, 0)
+
+```
+
+```{r}
+#MotivNumTCHC, no control
+motivnum5TCHCnull <- glm(data = dfmn15, family = "binomial", w5_MotivNumTCHCRev ~ 1)
+motivnum5TCHC <- glm(data = dfmn15, family = "binomial", w5_MotivNumTCHCRev ~ ONScored_z * Con_Lib_mc)
+
+anova(motivnum5TCHCnull, motivnum5TCHC, test = "Chisq") # ns
+
+summary(motivnum5TCHC)
+
+## plot
+
+dfmn15 <- dfmn15 %>% 
+  mutate(reported_binTCHC = case_when(w5_MotivNumTCHCRev == "0" ~ 0,
+                                  w5_MotivNumTCHCRev == "1" ~ 1))
+
+ggplot(dfmn15, aes(x = ONScored_z, y = reported_binTCHC, color = LvC)) + 
+  stat_smooth(method="glm", method.args = list(family="binomial"),
+              formula=y~x,
+              alpha=0.2, size=2, aes(fill=LvC)) +
+    geom_point(position=position_jitter(height=0.03, width=0)) +
+    labs(x = "ONS (z-scored)", y = "Pr(Preference Reversal)",
+       title = "Probability of W5 T-C H-C Response Inconsistency by ONS and Ideology",
+       caption = "Wave 4 sample, 95% confidence bands. \nPreference reversal indicates participants selected hit rate for W2 Coronavirus item but not for W4 Control item.") +
+  scale_fill_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  scale_color_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  theme_minimal()
+
+#MotivNumPR, control
+motivnumcont5TCHC <- glm(data = dfmn15, family = "binomial", w5_MotivNumTCHCRev ~ ONScored_z * Con_Lib_mc + VerbLogScored_z)
+
+anova(motivnum5TCHCnull, motivnumcont5TCHC, test = "Chisq") # ns
+
+summary(motivnumcont5TCHC)
+
+#MotivNumPR, control w/ interaction
+motivnumcont_int5TCHC <- glm(data = dfmn15, family = "binomial", w5_MotivNumTCHCRev ~ Con_Lib_mc * VerbLogScored_z + LvC * ONScored_z)
+
+anova(motivnum5TCHCnull, motivnumcont_int5TCHC, test = "Chisq") # ns
+
+summary(motivnumcont_int5TCHC)
+```
+
+
+#### Business-Control Preference Reversals
+
+```{r}
+#df15$w5_MotivNumBCRev <- if_else(df15$w5_MRessential == 3 & df15$w4_MotivNum != 3, 1, 0, 0)
+
+```
+
+```{r}
+#MotivNumBC, no control
+motivnum5BCnull <- glm(data = dfmn15, family = "binomial", w5_MotivNumBCRev ~ 1)
+motivnum5BC <- glm(data = dfmn15, family = "binomial", w5_MotivNumBCRev ~ ONScored_z * Con_Lib_mc)
+
+anova(motivnum5BCnull, motivnum5BC, test = "Chisq") # sig
+
+summary(motivnum5BC)
+
+## plot - collapsed
+
+dfmn15 <- dfmn15 %>% 
+  mutate(reported_binBC = case_when(w5_MotivNumBCRev == "0" ~ 0,
+                                  w5_MotivNumBCRev == "1" ~ 1))
+
+ggplot(dfmn15, aes(x = ONScored_z, y = reported_binBC, color = LvC)) + 
+  stat_smooth(method="glm", method.args = list(family="binomial"),
+              formula=y~x,
+              alpha=0.2, size=2, aes(fill=LvC)) +
+    geom_point(position=position_jitter(height=0.03, width=0)) +
+    labs(x = "ONS (z-scored)", y = "Pr(Preference Reversal)",
+       title = "Probability of W5 B-C Response Inconsistency by ONS and Ideology",
+       caption = "Wave 4 sample, 95% confidence bands. \nPreference reversal indicates participants selected hit rate for W2 Coronavirus item but not for W4 Control item.") +
+  scale_fill_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  scale_color_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  theme_minimal()
+
+## plot - continuous
+
+ggplot(dfmn15, aes(x = ONScored_z, y = reported_binBC, color = as.factor(Con_Lib_mc))) + 
+  stat_smooth(method="glm", method.args = list(family="binomial"),
+              formula=y~x,
+              alpha=0.2, size=2, aes(fill=as.factor(Con_Lib_mc))) +
+    geom_point(position=position_jitter(height=0.03, width=0)) +
+    labs(x = "ONS (z-scored)", y = "Pr(Preference Reversal)",
+       title = "Probability of W5 B-C Response Inconsistency by ONS and Ideology",
+       caption = "Wave 4 sample, 95% confidence bands. \nPreference reversal indicates participants selected hit rate for W2 Coronavirus item but not for W4 Control item.") +
+  scale_fill_manual(name = "Ideology", labels = c("Con", "Con Lean", "Lib Lean", "Lib"), 
+                    values=c("red", "brown", "darkslateblue", "blue")) +
+  scale_color_manual(name = "Ideology", labels = c("Con", "Con Lean", "Lib Lean", "Lib"), 
+                    values=c("red", "brown", "darkslateblue", "blue")) +
+  theme_minimal()
+
+#MotivNumPR, control for order
+motivnum5BCord <- glm(data = dfmn15, family = "binomial", w5_MotivNumBCRev ~ ONScored_z * Con_Lib_mc * MotivNumDOT)
+
+anova(motivnum5BC, motivnum5BCord, test = "Chisq") # ns
+
+summary(motivnum5BCord)
+
+  ##
+
+motivnum5BCBonlynull <- glm(data = dfmn15B, family = "binomial", w5_MotivNumBCRev ~ 1)
+motivnum5BCBonly <- glm(data = dfmn15B, family = "binomial", w5_MotivNumBCRev ~ ONScored_z * Con_Lib_mc)
+
+anova(motivnum5BCBonlynull, motivnum5BCBonly, test = "Chisq") # ns
+
+summary(motivnum5BCBonly)
+
+#MotivNumPR, control
+motivnumcont5BC <- glm(data = dfmn15, family = "binomial", w5_MotivNumBCRev ~ ONScored_z * Con_Lib_mc + VerbLogScored_z)
+
+anova(motivnum5BC, motivnumcont5BC, test = "Chisq") # ns
+
+summary(motivnumcont5BC)
+
+#MotivNumPR, control w/ interaction
+motivnumcont_int5BC <- glm(data = dfmn15, family = "binomial", w5_MotivNumBCRev ~ Con_Lib_mc * VerbLogScored_z + LvC * ONScored_z)
+
+anova(motivnum5BC, motivnumcont_int5BC, test = "Chisq") # ns
+
+summary(motivnumcont_int5BC)
+```
+
+```{r}
+dfmn15 %>% 
+  filter(LvC == 1) %>% 
+  nrow()
+
+BCLPercent <- dfmn15 %>% 
+  filter(LvC == 1) %>% 
+  group_by(w5_MotivNumBCRev) %>% 
+  summarise(n = n(),
+            percent = (n / 278)*100,
+            LvC = "Con")
+
+dfmn15 %>% 
+  filter(LvC == 0) %>% 
+  nrow()
+
+BCCPercent <- dfmn15 %>% 
+  filter(LvC == 0) %>% 
+  group_by(w5_MotivNumBCRev) %>% 
+  summarise(n = n(),
+            percent = (n / 414)*100,
+            LvC = "Lib")
+
+BCRevDescPlot <- rbind(BCLPercent, BCCPercent)
+
+ggplot(data = BCRevDescPlot, aes(x = as.character(w5_MotivNumBCRev), y = percent, fill = as.factor(LvC))) +
+  geom_bar(position = "dodge", stat = "identity") +
+  scale_y_continuous(limits = c(0, 100)) +
+  labs(x = "Ideologically-Motivated Response Inconsistency", y = "Percent of Participants", fill = "Ideology") +
+  scale_fill_manual(values=c("red", "blue")) +
+  scale_x_discrete(labels = c("0" = "No", "1" = "Yes")) +
+  theme_minimal()
+```
+
+
+```{r}
+#df15$w5_MotivNumBCHCRev <- if_else(df15$w5_MRessential == 3 & df15$w4_MotivNum == 4, 1, 0, 0)
+
+```
+
+```{r}
+#MotivNumBCHC, no control
+motivnum5BCHCnull <- glm(data = dfmn15, family = "binomial", w5_MotivNumBCHCRev ~ 1)
+motivnum5BCHC <- glm(data = dfmn15, family = "binomial", w5_MotivNumBCHCRev ~ ONScored_z * Con_Lib_mc)
+
+anova(motivnum5BCHCnull, motivnum5BCHC, test = "Chisq") # ns
+
+summary(motivnum5BCHCnull)
+summary(motivnum5BCHC) # ideology is sig but model is worse than null model
+
+## plot
+
+dfmn15 <- dfmn15 %>% 
+  mutate(reported_binBCHC = case_when(w5_MotivNumBCHCRev == "0" ~ 0,
+                                  w5_MotivNumBCHCRev == "1" ~ 1))
+
+ggplot(dfmn15, aes(x = ONScored_z, y = reported_binBCHC, color = LvC)) + 
+  stat_smooth(method="glm", method.args = list(family="binomial"),
+              formula=y~x,
+              alpha=0.2, size=2, aes(fill=LvC)) +
+    geom_point(position=position_jitter(height=0.03, width=0)) +
+    labs(x = "ONS (z-scored)", y = "Pr(Preference Reversal)",
+       title = "Probability of W5 B-C H-C Response Inconsistency by ONS and Ideology",
+       caption = "Wave 4 sample, 95% confidence bands. \nPreference reversal indicates participants selected hit rate for W2 Coronavirus item but not for W4 Control item.") +
+  scale_fill_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  scale_color_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  theme_minimal()
+
+#MotivNumPR, control
+motivnumcont5BCHC <- glm(data = dfmn15, family = "binomial", w5_MotivNumBCHCRev ~ ONScored_z * Con_Lib_mc + VerbLogScored_z)
+
+anova(motivnum5BCHC, motivnumcont5BCHC, test = "Chisq") # ns
+
+summary(motivnumcont5BCHC)
+
+#MotivNumPR, control w/ interaction
+motivnumcont_int5BCHC <- glm(data = dfmn15, family = "binomial", w5_MotivNumBCHCRev ~ Con_Lib_mc * VerbLogScored_z + LvC * ONScored_z)
+
+anova(motivnum5BCHC, motivnumcont_int5BCHC, test = "Chisq") # ns
+
+summary(motivnumcont_int5BCHC)
+
+```
+
+
+### W5 Correct Selection (EA)
+
+```{r}
+#dfmn5$w5_MotivNumTCor <- as.factor(dfmn5$w5_MotivNumTCor)
+#dfmn5$w5_MotivNumBCor <- as.factor(dfmn5$w5_MotivNumBCor)
+```
+
+#### Trade
+
+```{r}
+#MotivNumCor, no control
+motivnum5Tcornull <- glm(data = dfmn5, family = "binomial", w5_MotivNumTCor ~ 1)
+motivnum5Tcor <- glm(data = dfmn5, family = "binomial", w5_MotivNumTCor ~ ONScored_z * Con_Lib_mc)
+
+anova(motivnum5Tcornull, motivnum5Tcor, test = "Chisq") # sig
+
+summary(motivnum5Tcor)
+
+## plot
+
+dfmn5 <- dfmn5 %>% 
+  mutate(reported_binTCor = case_when(w5_MotivNumTCor == "0" ~ 0,
+                                  w5_MotivNumTCor == "1" ~ 1))
+
+ggplot(dfmn5, aes(x = ONScored_z, y = reported_binTCor, color = LvC)) + 
+  stat_smooth(method="glm", method.args = list(family="binomial"),
+              formula=y~x,
+              alpha=0.2, size=2, aes(fill=LvC)) +
+    geom_point(position=position_jitter(height=0.03, width=0)) +
+    labs(x = "ONS (z-scored)", y = "Pr(Correct Response)",
+       title = "Probability of Correct Response on 54 Trade Item by ONS and Ideology",
+       caption = "With 95% confidence bands.") +
+  scale_fill_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  scale_color_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  theme_minimal()
+
+#MotivNumCor, control for order
+motivnum5TcorOrd <- glm(data = dfmn5, family = "binomial", w5_MotivNumTCor ~ ONScored_z * Con_Lib_mc *
+                          MotivNumDOT)
+
+anova(motivnum5Tcor, motivnum5TcorOrd, test = "Chisq") # ns
+
+summary(motivnum5TcorOrd)
+
+motivnum5TcorTonlynull <- glm(data = dfmn5T, family = "binomial", w5_MotivNumTCor ~ 1)
+motivnum5TcorTonly <- glm(data = dfmn5T, family = "binomial", w5_MotivNumTCor ~ ONScored_z * Con_Lib_mc)
+
+anova(motivnum5TcorTonlynull, motivnum5TcorTonly, test = "Chisq") # sig
+
+summary(motivnum5TcorTonly)
+
+#MotivNumCor, control
+motivnumcont5Tcor <- glm(data = dfmn5, family = "binomial", w5_MotivNumTCor ~ ONScored_z * Con_Lib_mc + VerbLogScored_z)
+
+anova(motivnum5Tcor, motivnumcont5Tcor, test = "Chisq") # ns
+
+summary(motivnumcont5Tcor)
+
+#MotivNumCor, control w/ interaction
+motivnumcont_int5Tcor <- glm(data = dfmn5, family = "binomial", w5_MotivNumTCor ~ Con_Lib_mc * VerbLogScored_z + LvC * ONScored_z)
+
+anova(motivnum5Tcor, motivnumcont_int5Tcor, test = "Chisq") # ns
+
+summary(motivnumcont_int5Tcor)
+
+```
+
+#### Business
+
+```{r}
+#MotivNumCor, no control
+motivnum5Bcornull <- glm(data = dfmn5, family = "binomial", w5_MotivNumBCor ~ 1)
+motivnum5Bcor <- glm(data = dfmn5, family = "binomial", w5_MotivNumBCor ~ ONScored_z * Con_Lib_mc)
+
+anova(motivnum5Bcornull, motivnum5Bcor, test = "Chisq") # sig
+
+summary(motivnum5Bcor)
+
+## plot
+
+dfmn5 <- dfmn5 %>% 
+  mutate(reported_binBCor = case_when(w5_MotivNumBCor == "0" ~ 0,
+                                  w5_MotivNumBCor == "1" ~ 1))
+
+ggplot(dfmn5, aes(x = ONScored_z, y = reported_binBCor, color = LvC)) + 
+  stat_smooth(method="glm", method.args = list(family="binomial"),
+              formula=y~x,
+              alpha=0.2, size=2, aes(fill=LvC)) +
+    geom_point(position=position_jitter(height=0.03, width=0)) +
+    labs(x = "ONS (z-scored)", y = "Pr(Correct Response)",
+       title = "Probability of Correct Response on 54 Business Item by ONS and Ideology",
+       caption = "With 95% confidence bands.") +
+  scale_fill_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  scale_color_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  theme_minimal()
+
+#MotivNumCor, control for order
+motivnum5BcorOrd <- glm(data = dfmn5, family = "binomial", w5_MotivNumBCor ~ ONScored_z * Con_Lib_mc +
+                          MotivNumDOT)
+
+anova(motivnum5Bcor, motivnum5BcorOrd, test = "Chisq") # ns
+
+summary(motivnum5BcorOrd)
+
+ ##
+
+motivnum5BcorBonlynull <- glm(data = dfmn5B, family = "binomial", w5_MotivNumBCor ~ 1)
+motivnum5BcorBonly <- glm(data = dfmn5B, family = "binomial", w5_MotivNumBCor ~ ONScored_z * Con_Lib_mc)
+
+anova(motivnum5BcorBonlynull, motivnum5BcorBonly, test = "Chisq") # sig
+
+summary(motivnum5BcorBonly)
+
+#MotivNumCor, control
+motivnumcont5Bcor <- glm(data = dfmn5, family = "binomial", w5_MotivNumBCor ~ ONScored_z * Con_Lib_mc + VerbLogScored_z)
+
+anova(motivnum5Bcor, motivnumcont5Bcor, test = "Chisq") # ns
+
+summary(motivnumcont5Bcor)
+
+#MotivNumCor, control w/ interaction
+motivnumcont_int5Bcor <- glm(data = dfmn5, family = "binomial", w5_MotivNumBCor ~ Con_Lib_mc * VerbLogScored_z + LvC * ONScored_z)
+
+anova(motivnum5Bcor, motivnumcont_int5Bcor, test = "Chisq") # ns
+
+summary(motivnumcont_int5Bcor)
+
+```
+
+### W5 Cognitive Ability Index (EA)
+
+#### Trade
+
+```{r}
+#MotivNumTCA
+motivnum5TCAnull <- glm(data = dfmn5, family = "binomial", w5_MotivNumTHit ~ 1)
+motivnum5TCA <- glm(data = dfmn5, family = "binomial", w5_MotivNumTHit ~ CogAbility * Con_Lib_mc)
+
+anova(motivnum5TCAnull, motivnum5TCA, test = "Chisq") # sig
+
+summary(motivnum5TCA)
+
+## plot
+
+ggplot(dfmn5, aes(x = CogAbility, y = reported_binT, color = LvC)) + 
+  stat_smooth(method="glm", method.args = list(family="binomial"),
+              formula=y~x,
+              alpha=0.2, size=2, aes(fill=LvC)) +
+    geom_point(position=position_jitter(height=0.03, width=0)) +
+    labs(x = "Cognitive Ability Index", y = "Pr(Hit Rate Selection)",
+       title = "Probability of Hit Rate Selection on W5 Trade Item \nby Cognitive Ability and Ideology",
+       caption = "With 95% confidence bands.") +
+  scale_fill_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  scale_color_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  theme_minimal()
+
+#MotivNumTCorCA
+motivnum5TcorCAnull <- glm(data = dfmn5, family = "binomial", w5_MotivNumTCor ~ 1)
+motivnum5TcorCA <- glm(data = dfmn5, family = "binomial", w5_MotivNumTCor ~ CogAbility * Con_Lib_mc)
+
+anova(motivnum5TcorCAnull, motivnum5TcorCA, test = "Chisq") # sig
+
+summary(motivnum5TcorCA)
+
+## plot
+
+ggplot(dfmn5, aes(x = CogAbility, y = reported_binTCor, color = LvC)) + 
+  stat_smooth(method="glm", method.args = list(family="binomial"),
+              formula=y~x,
+              alpha=0.2, size=2, aes(fill=LvC)) +
+    geom_point(position=position_jitter(height=0.03, width=0)) +
+    labs(x = "Cognitive Ability Index", y = "Pr(Correct Selection)",
+       title = "Probability of Correct Selection on W5 Trade Item \nby Cognitive Ability and Ideology",
+       caption = "With 95% confidence bands.") +
+  scale_fill_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  scale_color_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  theme_minimal()
+
+#MotivNumTBCA
+motivnum5TBCAnull <- glm(data = dfmn5, family = "binomial", w5_MotivNumTBRev ~ 1)
+motivnum5TBCA <- glm(data = dfmn5, family = "binomial", w5_MotivNumTBRev ~ CogAbility * Con_Lib_mc)
+
+anova(motivnum5TBCAnull, motivnum5TBCA, test = "Chisq") # sig
+
+summary(motivnum5TBCA)
+
+  #DO
+motivnum5TBCAord <- glm(data = dfmn5, family = "binomial", w5_MotivNumTBRev ~ CogAbility * Con_Lib_mc * MotivNumDOT)
+
+anova(motivnum5TBCAnull, motivnum5TBCAord, test = "Chisq") # sig
+
+summary(motivnum5TBCAord)
+
+#MotivNumTCCA
+motivnum5TCCAnull <- glm(data = dfmn15, family = "binomial", w5_MotivNumTCRev ~ 1)
+motivnum5TCCA <- glm(data = dfmn15, family = "binomial", w5_MotivNumTCRev ~ CogAbility * Con_Lib_mc)
+
+anova(motivnum5TCCAnull, motivnum5TCCA, test = "Chisq") # sig
+
+summary(motivnum5TCCA)
+
+  #DO
+motivnum5TCCAord <- glm(data = dfmn15, family = "binomial", w5_MotivNumTCRev ~ CogAbility * Con_Lib_mc *
+                          MotivNumDOT)
+
+anova(motivnum5TCCAnull, motivnum5TCCAord, test = "Chisq") # sig
+
+summary(motivnum5TCCAord)
+
+#MotivNumTCHCCA
+motivnum5TCHCCAnull <- glm(data = dfmn15, family = "binomial", w5_MotivNumTCHCRev ~ 1)
+motivnum5TCHCCA <- glm(data = dfmn15, family = "binomial", w5_MotivNumTCHCRev ~ CogAbility * Con_Lib_mc)
+
+anova(motivnum5TCHCCAnull, motivnum5TCHCCA, test = "Chisq") # ns
+
+summary(motivnum5TCHCCA)
+
+```
+
+#### Business
+
+```{r}
+#MotivNumBCA
+motivnum5BCAnull <- glm(data = dfmn5, family = "binomial", w5_MotivNumBHit ~ 1)
+motivnum5BCA <- glm(data = dfmn5, family = "binomial", w5_MotivNumBHit ~ CogAbility * Con_Lib_mc)
+
+anova(motivnum5BCAnull, motivnum5BCA, test = "Chisq") # ns
+
+summary(motivnum5BCA)
+
+## plot
+
+ggplot(dfmn5, aes(x = CogAbility, y = reported_binB, color = LvC)) + 
+  stat_smooth(method="glm", method.args = list(family="binomial"),
+              formula=y~x,
+              alpha=0.2, size=2, aes(fill=LvC)) +
+    geom_point(position=position_jitter(height=0.03, width=0)) +
+    labs(x = "Cognitive Ability Index", y = "Pr(Hit Rate Selection)",
+       title = "Probability of Hit Rate Selection on W5 Business Item \nby Cognitive Ability and Ideology",
+       caption = "With 95% confidence bands.") +
+  scale_fill_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  scale_color_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  theme_minimal()
+
+#MotivNumTCorCA
+motivnum5BcorCAnull <- glm(data = dfmn5, family = "binomial", w5_MotivNumBCor ~ 1)
+motivnum5BcorCA <- glm(data = dfmn5, family = "binomial", w5_MotivNumBCor ~ CogAbility * Con_Lib_mc)
+
+anova(motivnum5BcorCAnull, motivnum5BcorCA, test = "Chisq") # ns
+
+summary(motivnum5BcorCA)
+
+## plot
+
+ggplot(dfmn5, aes(x = CogAbility, y = reported_binBCor, color = LvC)) + 
+  stat_smooth(method="glm", method.args = list(family="binomial"),
+              formula=y~x,
+              alpha=0.2, size=2, aes(fill=LvC)) +
+    geom_point(position=position_jitter(height=0.03, width=0)) +
+    labs(x = "Cognitive Ability Index", y = "Pr(Correct Selection)",
+       title = "Probability of Correct Selection on W5 Trade Item \nby Cognitive Ability and Ideology",
+       caption = "With 95% confidence bands.") +
+  scale_fill_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  scale_color_manual(name = "Ideology", labels = c("Lib", "Con"), values=c("blue", "red")) +
+  theme_minimal()
+
+#MotivNumTBCA
+motivnum5BTCAnull <- glm(data = dfmn5, family = "binomial", w5_MotivNumBTRev ~ 1)
+motivnum5BTCA <- glm(data = dfmn5, family = "binomial", w5_MotivNumBTRev ~ CogAbility * Con_Lib_mc)
+
+anova(motivnum5BTCAnull, motivnum5BTCA, test = "Chisq") # sig
+
+summary(motivnum5BTCA)
+
+  # DO
+motivnum5BTCAord <- glm(data = dfmn5, family = "binomial", w5_MotivNumBTRev ~ CogAbility * Con_Lib_mc *
+                           MotivNumDOT)
+
+anova(motivnum5BTCA, motivnum5BTCAord, test = "Chisq") # ns
+
+summary(motivnum5BTCAord)
+
+#MotivNumBCCA
+motivnum5BCCAnull <- glm(data = dfmn15, family = "binomial", w5_MotivNumBCRev ~ 1)
+motivnum5BCCA <- glm(data = dfmn15, family = "binomial", w5_MotivNumBCRev ~ CogAbility * Con_Lib_mc)
+
+anova(motivnum5BCCAnull, motivnum5BCCA, test = "Chisq") # sig
+
+summary(motivnum5BCCA)
+
+  # DO
+motivnum5BCCAord <- glm(data = dfmn15, family = "binomial", w5_MotivNumBCRev ~ CogAbility * Con_Lib_mc *
+                          MotivNumDOT)
+
+anova(motivnum5BCCA, motivnum5BCCAord, test = "Chisq") # ns
+
+summary(motivnum5BCCAord)
+
+#MotivNumBCHCCA
+motivnum5BCHCCAnull <- glm(data = dfmn15, family = "binomial", w5_MotivNumBCHCRev ~ 1)
+motivnum5BCHCCA <- glm(data = dfmn15, family = "binomial", w5_MotivNumBCHCRev ~ CogAbility * Con_Lib_mc)
+
+anova(motivnum5BCHCCAnull, motivnum5BCHCCA, test = "Chisq") # ns
+
+summary(motivnum5BCHCCA)
+summary(motivnum5BCHCCAnull)
+
+```
+
+# Create ONS z Splits
+
+```{r}
+
+dfmn5$ONS_MSD <- if_else(dfmn5$ONScored == median(dfmn5$ONScored, na.rm=T), 0, 
+                        if_else(dfmn5$ONScored_z > 1, 1,
+                                if_else(dfmn5$ONScored_z < -1, -1, 2)))
+
+dfmn5 %>% 
+  select(ONScored_z) %>% 
+  unique()
+median(dfmn5$ONScored_z)
+
+
+dfmn5 %>% 
+  select(ONScored, ONScored_z, ONS_MSD) %>% 
+  nrow()
+
+dfmn5 %>% 
+  group_by(ONScored) %>% 
+  summarise(n = n())
+
+hist(dfmn4$ONScored)
+hist(dfmn4$ONScored_z)
+
+mean(dfmn5$ONScored)
+
+
+dfmn5 %>% 
+  group_by(Con_Lib) %>% 
+  summarise(n = n()) # not balanced at all, so when you plot make sure to get percentages instead of raw numbers
+
+48+268+354+100 # 770
+
+```
+
+# Descriptives Grouped
+
+```{r}
+dfmn5 %>% 
+  select(LvC, ONS_MSD, w2_MotivNum, w4_MotivNum, w2_MotivNumHit, w4_MotivNumCHit) %>% 
+  str()
+
+dfmn5 %>% 
+  group_by(LvC) %>% 
+  summarise(n = n(),
+            percent = n / 770)
+
+dfmn5 %>% 
+  group_by(ONS_MSD) %>% 
+  summarise(n = n(),
+            percent = n / 770)
+
+dfmn5 %>% 
+  group_by(LvC, w4_MotivNum) %>% 
+  summarise(n = n())
+
+dfmn5 %>% 
+  filter(LvC == 1) %>% #316
+  group_by(w4_MotivNum) %>% 
+  summarise(n = n(),
+            percent = (n / 316)*100)
+
+dfmn5 %>% 
+  filter(LvC == 0) %>% #454
+  group_by(w2_MotivNum) %>% 
+  summarise(n = n(),
+            percent = (n / 454)*100)
+
+316+454 # just checking
+
+```
+
+# Descriptive Plots--Choice Not Collapsed, fill = Ideology (collapsed)
+```{r}
+LowONSCon <- dfmn5 %>% 
+  filter(ONS_MSD == -1 & LvC == 1) %>% #21
+  group_by(w4_MotivNum) %>% 
+  summarise(n = n(),
+            percent = (n / 21)*100,
+            ONS = -1,
+            LvC = "Con")
+
+LowONSLib <- dfmn5 %>% 
+  filter(ONS_MSD == -1 & LvC == 0) %>% #39
+  group_by(w4_MotivNum) %>% 
+  summarise(n = n(),
+            percent = (n / 39)*100,
+            ONS = -1,
+            LvC = "Lib")
+
+LowONS4Plot <- rbind(LowONSCon, LowONSLib)
+
+ggplot(data = LowONS4Plot, aes(x = as.numeric(w4_MotivNum), y = percent, fill = as.factor(LvC))) +
+  geom_bar(position = "dodge", stat = "identity") +
+  scale_y_continuous(limits = c(0, 100)) +
+  labs(x = "Probability Chosen", y = "Percent of Low ONS Participants", fill = "Ideology",
+       title = "Probability Selected on Control Item by Ideology Among Low ONS",
+       caption = "Includes participants with ONS 1 SD below mean or more extreme.
+       Probability 3 = Hit Rate, Probability 4 = Correct.") +
+  scale_fill_manual(values=c("red", "blue")) +
+  theme_minimal()
+
+MedONSCon <- dfmn5 %>% 
+  filter(ONS_MSD == 0 & LvC == 1) %>% 
+  group_by(w2_MotivNum) %>% 
+  summarise(n = n(),
+            percent = (n / 133)*100,
+            ONS = 0,
+            LvC = "Con")
+
+MedONSLib <- dfmn5 %>% 
+  filter(ONS_MSD == 0 & LvC == 0) %>% 
+  group_by(w2_MotivNum) %>% 
+  summarise(n = n(),
+            percent = (n / 231)*100,
+            ONS = 0,
+            LvC = "Lib")
+
+MedONS4Plot <- rbind(MedONSCon, MedONSLib)
+
+ggplot(data = MedONS4Plot, aes(x = as.numeric(w2_MotivNum), y = percent, fill = as.factor(LvC))) +
+  geom_bar(position = "dodge", stat = "identity") +
+  scale_y_continuous(limits = c(0, 100)) +
+  labs(x = "Probability Chosen", y = "Percent of Median ONS Participants", fill = "Ideology",
+       title = "Probability Selected on Control Item by Ideology Among Median ONS",
+       caption = "Includes participants with median ONS.
+       Probability 3 = Hit Rate, Probability 4 = Correct.") +
+  scale_fill_manual(values=c("red", "blue")) +
+  theme_minimal()
+
+HiONSCon <- dfmn5 %>% 
+  filter(ONS_MSD == 1 & LvC == 1) %>% #82
+  group_by(w4_MotivNum) %>% 
+  summarise(n = n(),
+            percent = (n / 82)*100,
+            ONS = 1,
+            LvC = "Con")
+
+HiONSLib <- dfmn5 %>% 
+  filter(ONS_MSD == 1 & LvC == 0) %>% #120
+  group_by(w4_MotivNum) %>% 
+  summarise(n = n(),
+            percent = (n / 120)*100,
+            ONS = 1,
+            LvC = "Lib")
+
+HiONS4Plot <- rbind(HiONSCon, HiONSLib)
+
+ggplot(data = HiONS4Plot, aes(x = as.numeric(w4_MotivNum), y = percent, fill = as.factor(LvC))) +
+  geom_bar(position = "dodge", stat = "identity") +
+  scale_y_continuous(limits = c(0, 100)) +
+  labs(x = "Probability Chosen", y = "Percent of High ONS Participants", fill = "Ideology",
+       title = "Probability Selected on Control Item by Ideology Among High ONS",
+       caption = "Includes participants with ONS 1 SD above mean or more extreme.
+       Probability 3 = Hit Rate, Probability 4 = Correct.") +
+  scale_fill_manual(values=c("red", "blue")) +
+  theme_minimal()
+
+```
+
+# Descriptive Plots--Choice Collapsed, fill = Ideology (collapsed)
+```{r}
+LowONSCon_HR <- dfmn5 %>% 
+  filter(ONS_MSD == -1 & LvC == 1) %>% #21
+  group_by(w4_MotivNumCHit) %>% 
+  summarise(n = n(),
+            percent = (n / 21)*100,
+            ONS = -1,
+            LvC = "Con")
+
+LowONSLib_HR <- dfmn5 %>% 
+  filter(ONS_MSD == -1 & LvC == 0) %>% #39
+  group_by(w4_MotivNumCHit) %>% 
+  summarise(n = n(),
+            percent = (n / 39)*100,
+            ONS = -1,
+            LvC = "Lib")
+
+LowONS4Plot_HR <- rbind(LowONSCon_HR, LowONSLib_HR)
+
+ggplot(data = LowONS4Plot_HR, aes(x = as.character(w4_MotivNumCHit), y = percent, fill = as.factor(LvC))) +
+  geom_bar(position = "dodge", stat = "identity") +
+  scale_y_continuous(limits = c(0, 100)) +
+  labs(x = "Probability Chosen", y = "Percent of Low ONS Participants", fill = "Ideology",
+       title = "Probability Selected on Control Item by Ideology Among Low ONS",
+       caption = "Includes participants with ONS 1 SD below mean or more extreme.
+       Probability: 0 = Other, 1 = Hit Rate.") +
+  scale_fill_manual(values=c("red", "blue")) +
+  theme_minimal()
+
+MedONSCon_HR <- dfmn5 %>% 
+  filter(ONS_MSD == 0 & LvC == 1) %>% #106
+  group_by(w4_MotivNumCHit) %>% 
+  summarise(n = n(),
+            percent = (n / 106)*100,
+            ONS = 0,
+            LvC = "Con")
+
+MedONSLib_HR <- dfmn5 %>% 
+  filter(ONS_MSD == 0 & LvC == 0) %>% #170
+  group_by(w4_MotivNumCHit) %>% 
+  summarise(n = n(),
+            percent = (n / 170)*100,
+            ONS = 0,
+            LvC = "Lib")
+
+MedONS4Plot_HR <- rbind(MedONSCon_HR, MedONSLib_HR)
+
+ggplot(data = MedONS4Plot_HR, aes(x = as.character(w4_MotivNumCHit), y = percent, fill = as.factor(LvC))) +
+  geom_bar(position = "dodge", stat = "identity") +
+  scale_y_continuous(limits = c(0, 100)) +
+  labs(x = "Probability Chosen", y = "Percent of Median ONS Participants", fill = "Ideology",
+       title = "Probability Selected on Control Item by Ideology Among Median ONS",
+       caption = "Includes participants with median ONS.
+       Probability: 0 = Other, 1 = Hit Rate.") +
+  scale_fill_manual(values=c("red", "blue")) +
+  theme_minimal()
+
+HiONSCon_HR <- dfmn5 %>% 
+  filter(ONS_MSD == 1 & LvC == 1) %>% #82
+  group_by(w4_MotivNumCHit) %>% 
+  summarise(n = n(),
+            percent = (n / 82)*100,
+            ONS = 1,
+            LvC = "Con")
+
+HiONSLib_HR <- dfmn5 %>% 
+  filter(ONS_MSD == 1 & LvC == 0) %>% #120
+  group_by(w4_MotivNumCHit) %>% 
+  summarise(n = n(),
+            percent = (n / 120)*100,
+            ONS = 1,
+            LvC = "Lib")
+
+HiONS4Plot_HR <- rbind(HiONSCon_HR, HiONSLib_HR)
+
+ggplot(data = HiONS4Plot_HR, aes(x = as.character(w4_MotivNumCHit), y = percent, fill = as.factor(LvC))) +
+  geom_bar(position = "dodge", stat = "identity") +
+  scale_y_continuous(limits = c(0, 100)) +
+  labs(x = "Probability Chosen", y = "Percent of High ONS Participants", fill = "Ideology",
+       title = "Probability Selected on Control Item by Ideology Among High ONS",
+       caption = "Includes participants with ONS 1 SD above mean or more extreme.
+       Probability: 0 = Other, 1 = Hit Rate.") +
+  scale_fill_manual(values=c("red", "blue")) +
+  theme_minimal()
+```
